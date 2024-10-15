@@ -2,45 +2,89 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
+import numpy as np
 
 class ModelTrainer:
-    def __init__(self, model, learning_rate, batch_size, device=None):
+    def __init__(self, model, learning_rate, batch_size, device=None, early_stopping_patience=5):
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.mse_criterion = nn.MSELoss()
         self.mae_criterion = nn.L1Loss()
         self.optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         self.batch_size = batch_size
+        self.early_stopping_patience = early_stopping_patience
 
-    def train(self, train_dataset, num_epochs):
+    def train(self, train_dataset, val_dataset, num_epochs):
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
+
+        best_val_loss = np.inf
+        patience_counter = 0
+
         for epoch in range(num_epochs):
+            # Training Phase
             self.model.train()
             total_mse_loss = 0
             total_mae_loss = 0
-            
+
             for batch in train_loader:
                 x, y_true = [b.to(self.device) for b in batch]
-                
+
                 self.optimizer.zero_grad()
                 y_pred = self.model(x, None, y_true, None)  # Passing None for x_mark and y_mark
-                
+
                 mse_loss = self.mse_criterion(y_pred, y_true)
                 mae_loss = self.mae_criterion(y_pred, y_true)
-                
-                # You can adjust the weights of MSE and MAE if needed
+
                 combined_loss = mse_loss + mae_loss
-                
                 combined_loss.backward()
                 self.optimizer.step()
-                
+
                 total_mse_loss += mse_loss.item()
                 total_mae_loss += mae_loss.item()
-            
+
             avg_mse_loss = total_mse_loss / len(train_loader)
             avg_mae_loss = total_mae_loss / len(train_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, MSE Loss: {avg_mse_loss:.4f}, MAE Loss: {avg_mae_loss:.4f}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Train MSE Loss: {avg_mse_loss:.4f}, Train MAE Loss: {avg_mae_loss:.4f}")
+
+            # Validation Phase
+            val_mse_loss, val_mae_loss = self.validate(val_loader)
+            print(f"Epoch {epoch+1}/{num_epochs}, Val MSE Loss: {val_mse_loss:.4f}, Val MAE Loss: {val_mae_loss:.4f}")
+
+            # Early Stopping Check
+            if val_mse_loss < best_val_loss:
+                best_val_loss = val_mse_loss
+                patience_counter = 0  # Reset the patience counter if validation loss improves
+                print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
+                torch.save(self.model.state_dict(), 'best_model.pth')
+            else:
+                patience_counter += 1
+                print(f"No improvement in validation loss. Patience counter: {patience_counter}/{self.early_stopping_patience}")
+
+            # Stop early if patience exceeds the limit
+            if patience_counter >= self.early_stopping_patience:
+                print("Early stopping triggered. Training halted.")
+                break
+
+    def validate(self, val_loader):
+        self.model.eval()
+        total_mse = 0
+        total_mae = 0
+
+        with torch.no_grad():
+            for batch in val_loader:
+                x, y_true = [b.to(self.device) for b in batch]
+                y_pred = self.model(x, None, y_true, None)  # Passing None for x_mark and y_mark
+
+                mse = self.mse_criterion(y_pred, y_true)
+                mae = self.mae_criterion(y_pred, y_true)
+
+                total_mse += mse.item()
+                total_mae += mae.item()
+
+        avg_mse = total_mse / len(val_loader)
+        avg_mae = total_mae / len(val_loader)
+        return avg_mse, avg_mae
 
     def test(self, test_dataset):
         test_loader = DataLoader(test_dataset, batch_size=self.batch_size)
