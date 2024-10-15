@@ -3,19 +3,21 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim import lr_scheduler 
 
 class ModelTrainer:
     def __init__(self, model, learning_rate, batch_size, device=None, early_stopping_patience=5,
                  weight_decay=0.0001, dropout_rate=0.1, clip_grad_norm=1.0, lr_scheduler_factor=0.1,
-                 lr_scheduler_patience=3, mse_weight=0.5, mae_weight=0.5):
-        self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                 lr_scheduler_patience=3, mse_weight=0.5, mae_weight=0.5, pct_start=0.3, use_gpu=True, use_multi_gpu=False,
+                 device_ids = 0):
+        self.device = device if device is not None else torch.device("cpu" if torch.cpu.is_available() else "cuda")
         self.model = model.to(self.device)
         self.mse_criterion = nn.MSELoss()
         self.mae_criterion = nn.L1Loss()
+        self.learning_rate = learning_rate
         self.optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=lr_scheduler_factor, 
-                                           patience=lr_scheduler_patience, verbose=True)
+        '''self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=lr_scheduler_factor, 
+                                           patience=lr_scheduler_patience, verbose=True)'''
         self.batch_size = batch_size
         self.early_stopping_patience = early_stopping_patience
         self.dropout_rate = dropout_rate
@@ -23,12 +25,26 @@ class ModelTrainer:
         self.mse_weight = mse_weight
         self.mae_weight = mae_weight
 
+        self.use_gpu =use_gpu
+        self.use_multi_gpu = use_multi_gpu
+        self.device_ids = device_ids
+        self.pct_start = pct_start
+
+        if self.use_multi_gpu and self.use_gpu:
+            self.model = nn.DataParallel(self.model, device_ids=self.device_ids)
+
     def train(self, train_dataset, val_dataset, num_epochs):
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         best_val_loss = np.inf
         patience_counter = 0
+
+        self.scheduler = lr_scheduler.OneCycleLR(optimizer = self.optimizer,
+                                            steps_per_epoch = int(num_epochs/self.batch_size),
+                                            pct_start = self.pct_start,
+                                            epochs = num_epochs,
+                                            max_lr = self.learning_rate)
 
         for epoch in range(num_epochs):
             # Training Phase
@@ -49,15 +65,15 @@ class ModelTrainer:
                 combined_loss.backward()
                 
                 # Gradient clipping
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
+                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
                 
                 self.optimizer.step()
 
                 total_mse_loss += mse_loss.item()
                 total_mae_loss += mae_loss.item()
 
-            avg_mse_loss = total_mse_loss / len(train_loader)
-            avg_mae_loss = total_mae_loss / len(train_loader)
+            avg_mse_loss = np.average(total_mse_loss)
+            avg_mae_loss = np.average(total_mae_loss)
             print(f"Epoch {epoch+1}/{num_epochs}, Train MSE Loss: {avg_mse_loss:.4f}, Train MAE Loss: {avg_mae_loss:.4f}")
 
             # Validation Phase
@@ -98,9 +114,9 @@ class ModelTrainer:
                 total_mse += mse.item()
                 total_mae += mae.item()
 
-        avg_mse = total_mse / len(val_loader)
-        avg_mae = total_mae / len(val_loader)
-        return avg_mse, avg_mae
+        avg_mse_loss = np.average(total_mse)
+        avg_mae_loss = np.average(total_mae)
+        return avg_mse_loss, avg_mae_loss
 
     def test(self, test_dataset):
         test_loader = DataLoader(test_dataset, batch_size=self.batch_size)
@@ -125,11 +141,11 @@ class ModelTrainer:
                 all_predictions.append(y_pred.cpu())
                 all_true_values.append(y_true.cpu())
         
-        avg_mse = total_mse / len(test_loader)
-        avg_mae = total_mae / len(test_loader)
+        avg_mse_loss = np.average(total_mse)
+        avg_mae_loss = np.average(total_mae)
         
-        print(f"Test MSE: {avg_mse:.4f}")
-        print(f"Test MAE: {avg_mae:.4f}")
+        print(f"Test MSE: {avg_mse_loss:.4f}")
+        print(f"Test MAE: {avg_mae_loss:.4f}")
 
         # Concatenate all predictions and true values
         all_predictions = torch.cat(all_predictions, dim=0)
