@@ -56,7 +56,7 @@ class ModelTrainer:
                 x, y_true = [b.to(self.device) for b in batch]
 
                 self.optimizer.zero_grad()
-                y_pred = self.model(x, None, y_true, None)  # Passing None for x_mark and y_mark
+                y_pred = self.model(x)#, None, y_true, None)  # Passing None for x_mark and y_mark
 
                 mse_loss = self.mse_criterion(y_pred, y_true)
                 mae_loss = self.mae_criterion(y_pred, y_true)
@@ -106,7 +106,7 @@ class ModelTrainer:
         with torch.no_grad():
             for batch in val_loader:
                 x, y_true = [b.to(self.device) for b in batch]
-                y_pred = self.model(x, None, y_true, None)  # Passing None for x_mark and y_mark
+                y_pred = self.model(x)#, None, y_true, None)  # Passing None for x_mark and y_mark
 
                 mse = self.mse_criterion(y_pred, y_true)
                 mae = self.mae_criterion(y_pred, y_true)
@@ -130,7 +130,7 @@ class ModelTrainer:
         with torch.no_grad():
             for batch in test_loader:
                 x, y_true = [b.to(self.device) for b in batch]
-                y_pred = self.model(x, None, y_true, None)  # Passing None for x_mark and y_mark
+                y_pred = self.model(x)#, None, y_true, None)  # Passing None for x_mark and y_mark
                 
                 mse = self.mse_criterion(y_pred, y_true)
                 mae = self.mae_criterion(y_pred, y_true)
@@ -157,7 +157,7 @@ class ModelTrainer:
         self.model.eval()
         with torch.no_grad():
             x = x.to(self.device)
-            y_pred = self.model(x, None, None, None)  # Passing None for x_mark, y_true, and y_mark
+            y_pred = self.model(x)#, None, None, None)  # Passing None for x_mark, y_true, and y_mark
         return y_pred.cpu()
 
     def set_dropout(self, dropout_rate):
