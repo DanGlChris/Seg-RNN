@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 from ModelTrainer import ModelTrainer
 from SegRNN import SegRNN, Config  # You need to import your model and configs
+from Dlinear import Dlinear, Config
 
 class TimeSeriesDataset(Dataset):
     def __init__(self, data, seq_len, pred_len):
@@ -52,13 +53,14 @@ configs.pred_len = 24  # prediction sequence length (e.g., next day prediction)
 configs.patch_len = 24  # patch length (e.g., daily patches)
 configs.d_model = 512  # model dimension
 configs.dropout = 0.1  # dropout rate
+configs.individual = True
 
 # Create datasets
 train_dataset = TimeSeriesDataset(train_data, configs.seq_len, configs.pred_len)
 test_dataset = TimeSeriesDataset(test_data, configs.seq_len, configs.pred_len)
 
 # Initialize the model
-model = SegRNN(configs)
+model = Dlinear(configs)
 
 # Create trainer instance
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
