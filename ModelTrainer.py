@@ -81,14 +81,14 @@ class ModelTrainer:
             print(f"Epoch {epoch+1}/{num_epochs}, Val MSE Loss: {val_mse_loss:.4f}, Val MAE Loss: {val_mae_loss:.4f}")
 
             # Learning rate scheduling
-            self.scheduler.step(val_mse_loss)
+            self.scheduler.step(val_mae_loss)
 
             # Early Stopping Check
-            if val_mse_loss < best_val_loss:
-                best_val_loss = val_mse_loss
+            if val_mae_loss < best_val_loss:
+                best_val_loss = val_mae_loss
                 patience_counter = 0
                 print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
-                torch.save(self.model.state_dict(), 'best_model.pth')
+                #torch.save(self.model.state_dict(), 'best_model.pth')
             else:
                 patience_counter += 1
                 print(f"No improvement in validation loss. Patience counter: {patience_counter}/{self.early_stopping_patience}")
