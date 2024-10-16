@@ -41,7 +41,7 @@ class ModelTrainer:
         patience_counter = 0
 
         self.scheduler = lr_scheduler.OneCycleLR(optimizer = self.optimizer,
-                                            steps_per_epoch = int(num_epochs/self.batch_size),
+                                            steps_per_epoch = int(num_epochs/10),
                                             pct_start = self.pct_start,
                                             epochs = num_epochs,
                                             max_lr = self.learning_rate)
