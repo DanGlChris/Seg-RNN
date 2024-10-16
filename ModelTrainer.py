@@ -62,7 +62,7 @@ class ModelTrainer:
                 mae_loss = self.mae_criterion(y_pred, y_true)
 
                 combined_loss = self.mse_weight * mse_loss + self.mae_weight * mae_loss
-                combined_loss.backward()
+                mse_loss.backward()
                 
                 # Gradient clipping
                 #torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
@@ -89,6 +89,10 @@ class ModelTrainer:
                 patience_counter = 0
                 print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
                 #torch.save(self.model.state_dict(), 'best_model.pth')
+            elif avg_mse_loss < best_val_loss:
+                best_val_loss = avg_mse_loss
+                patience_counter = 0
+                print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
             else:
                 patience_counter += 1
                 print(f"No improvement in validation loss. Patience counter: {patience_counter}/{self.early_stopping_patience}")
