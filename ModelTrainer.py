@@ -65,7 +65,7 @@ class ModelTrainer:
                 mse_loss.backward()
                 
                 # Gradient clipping
-                #torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
                 
                 self.optimizer.step()
 
