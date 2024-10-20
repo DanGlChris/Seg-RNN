@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from torch.optim import lr_scheduler 
 
+from adjacent_matrix_norm import calculate_scaled_laplacian, calculate_symmetric_normalized_laplacian, calculate_symmetric_message_passing_adj, calculate_transition_matrix
 
 class MASELoss(nn.Module):
     def __init__(self, naive_period=1, epsilon=1e-8):
@@ -242,3 +243,27 @@ class ModelTrainer:
         for module in self.model.modules():
             if isinstance(module, nn.Dropout):
                 module.p = dropout_rate
+
+    def load_adj(dataset, adj_type: str = "doubletransition"):
+            
+        adj_mx = dataset.to_numpy()
+        if adj_type == "scalap":
+            adj = [calculate_scaled_laplacian(adj_mx).astype(np.float32).todense()]
+        elif adj_type == "normlap":
+            adj = [calculate_symmetric_normalized_laplacian(
+                adj_mx).astype(np.float32).todense()]
+        elif adj_type == "symnadj":
+            adj = [calculate_symmetric_message_passing_adj(
+                adj_mx).astype(np.float32).todense()]
+        elif adj_type == "transition":
+            adj = [calculate_transition_matrix(adj_mx).T]
+        elif adj_type == "doubletransition":
+            adj = [calculate_transition_matrix(adj_mx).T, calculate_transition_matrix(adj_mx.T).T]
+        elif adj_type == "identity":
+            adj = [np.diag(np.ones(adj_mx.shape[0])).astype(np.float32)]
+        elif adj_type == "original":
+            adj = [adj_mx]
+        else:
+            error = 0
+            assert error, "adj type not defined"
+        return adj, adj_mx
