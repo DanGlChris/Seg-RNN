@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import torch.nn.functional as F
 
-from .ginar_cell import ginarCell
+from ginar_cell import ginarCell
 
 
 class GinAR(nn.Module):
