@@ -208,7 +208,7 @@ class ModelTrainer:
         avg_mse_loss = np.average(total_mse)
         avg_mae_loss = np.average(total_mae)
         
-        avg_loss = np.average(avg_loss)
+        avg_loss = np.average(total_loss)
 
         print(f"Test MSE: {avg_mse_loss:.4f}")
         print(f"Test MAE: {avg_mae_loss:.4f}")
