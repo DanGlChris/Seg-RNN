@@ -1,10 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from torch.optim import lr_scheduler 
 
+class CustomLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self, x, y):
+        return 0.5 * F.mse_loss(x, y) + 0.5 * F.l1_loss(x, y)
 class ModelTrainer:
     def __init__(self, model, learning_rate, batch_size, device=None, early_stopping_patience=5,
                  weight_decay=0.0001, dropout_rate=0.1, clip_grad_norm=1.0, lr_scheduler_factor=0.1,
@@ -46,11 +52,14 @@ class ModelTrainer:
                                             epochs = num_epochs,
                                             max_lr = self.learning_rate)
 
+        criterion = self.CustomLoss()
+
         for epoch in range(num_epochs):
             # Training Phase
             self.model.train()
             total_mse_loss = 0
-            total_mae_loss = 0
+            total_mae_loss = 0            
+            train_loss = []
 
             for batch in train_loader:
                 x, y_true = [b.to(self.device) for b in batch]
@@ -58,41 +67,46 @@ class ModelTrainer:
                 self.optimizer.zero_grad()
                 y_pred = self.model(x)#, None, y_true, None)  # Passing None for x_mark and y_mark
 
-                mse_loss = self.mse_criterion(y_pred, y_true)
-                mae_loss = self.mae_criterion(y_pred, y_true)
+                #mse_loss = self.mse_criterion(y_pred, y_true)
+                #mae_loss = self.mae_criterion(y_pred, y_true)
+                loss = criterion(y_pred, y_true)
+                loss.backward()
 
-                combined_loss = self.mse_weight * mse_loss + self.mae_weight * mae_loss
-                mse_loss.backward()
+                #combined_loss = self.mse_weight * mse_loss + self.mae_weight * mae_loss
+                #mse_loss.backward()
                 
                 # Gradient clipping
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
                 
                 self.optimizer.step()
 
-                total_mse_loss += mse_loss.item()
-                total_mae_loss += mae_loss.item()
+                #total_mse_loss += mse_loss.item()
+                #total_mae_loss += mae_loss.item()
+                train_loss.append(loss.item())
 
-            avg_mse_loss = np.average(total_mse_loss)
-            avg_mae_loss = np.average(total_mae_loss)
-            print(f"Epoch {epoch+1}/{num_epochs}, Train MSE Loss: {avg_mse_loss:.4f}, Train MAE Loss: {avg_mae_loss:.4f}")
+            train_loss = np.average(train_loss)
+            #avg_mse_loss = np.average(total_mse_loss)
+            #avg_mae_loss = np.average(total_mae_loss)
+            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}")#, Train MAE Loss: {avg_mae_loss:.4f}")
 
             # Validation Phase
-            val_mse_loss, val_mae_loss = self.validate(val_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Val MSE Loss: {val_mse_loss:.4f}, Val MAE Loss: {val_mae_loss:.4f}")
+            #val_mse_loss, val_mae_loss = self.validate(val_loader, criterion)
+            val_loss = self.validate(val_loader, criterion)
+            print(f"Epoch {epoch+1}/{num_epochs}, Val Loss: {val_loss:.4f}")#, Val MAE Loss: {val_mae_loss:.4f}")
 
             # Learning rate scheduling
-            self.scheduler.step(val_mae_loss)
+            self.scheduler.step(val_loss)
 
             # Early Stopping Check
-            if val_mae_loss < best_val_loss:
-                best_val_loss = val_mae_loss
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
                 patience_counter = 0
                 print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
                 #torch.save(self.model.state_dict(), 'best_model.pth')
-            elif avg_mse_loss < best_val_loss:
-                best_val_loss = avg_mse_loss
-                patience_counter = 0
-                print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
+            #elif avg_mse_loss < best_val_loss:
+            #    best_val_loss = avg_mse_loss
+            #    patience_counter = 0
+            #    print(f"Validation loss improved. Saving model at epoch {epoch+1}.")
             else:
                 patience_counter += 1
                 print(f"No improvement in validation loss. Patience counter: {patience_counter}/{self.early_stopping_patience}")
@@ -102,25 +116,30 @@ class ModelTrainer:
                 print("Early stopping triggered. Training halted.")
                 break
 
-    def validate(self, val_loader):
+    def validate(self, val_loader, criterion):
         self.model.eval()
-        total_mse = 0
-        total_mae = 0
-
+        #total_mse = 0
+        #total_mae = 0
+        total_loss = []
         with torch.no_grad():
             for batch in val_loader:
                 x, y_true = [b.to(self.device) for b in batch]
                 y_pred = self.model(x)#, None, y_true, None)  # Passing None for x_mark and y_mark
 
-                mse = self.mse_criterion(y_pred, y_true)
-                mae = self.mae_criterion(y_pred, y_true)
+                #mse = self.mse_criterion(y_pred, y_true)
+                #mae = self.mae_criterion(y_pred, y_true)
+                loss = criterion(y_pred, y_true)
+                
+                #total_mse += mse.item()
+                #total_mae += mae.item()
+                total_loss.append(loss)
 
-                total_mse += mse.item()
-                total_mae += mae.item()
-
-        avg_mse_loss = np.average(total_mse)
-        avg_mae_loss = np.average(total_mae)
-        return avg_mse_loss, avg_mae_loss
+        total_loss = np.average(total_loss)
+        #avg_mse_loss = np.average(total_mse)
+        #avg_mae_loss = np.average(total_mae)
+        #return avg_mse_loss, avg_mae_loss
+        self.model.train()
+        return total_loss
 
     def test(self, test_dataset):
         test_loader = DataLoader(test_dataset, batch_size=self.batch_size)
