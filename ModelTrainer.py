@@ -40,6 +40,14 @@ class MAPELoss(nn.Module):
         # Calculate MAPE
         mape = torch.mean(percentage_error) * 100
         return mape
+
+class MSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, yhat, y):
+        return torch.mean((yhat - y) ** 2)
+    
 class CustomLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -86,7 +94,7 @@ class ModelTrainer:
                                             epochs = num_epochs,
                                             max_lr = self.learning_rate)
 
-        self.criterion = MASELoss()
+        self.criterion = MSELoss()
 
         for epoch in range(num_epochs):
             # Training Phase
