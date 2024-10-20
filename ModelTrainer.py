@@ -132,7 +132,7 @@ class ModelTrainer:
                 
                 #total_mse += mse.item()
                 #total_mae += mae.item()
-                total_loss.append(loss)
+                total_loss.append(loss.item())
 
         total_loss = np.average(total_loss)
         #avg_mse_loss = np.average(total_mse)
