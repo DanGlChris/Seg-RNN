@@ -6,6 +6,40 @@ from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from torch.optim import lr_scheduler 
 
+
+class MASELoss(nn.Module):
+    def __init__(self, naive_period=1, epsilon=1e-8):
+        super().__init__()
+        self.naive_period = naive_period
+        self.epsilon = epsilon
+
+    def forward(self, y_pred, y_true):
+        # Calculate MAE of the prediction
+        mae_pred = F.l1_loss(y_pred, y_true, reduction='mean')
+        
+        # Calculate the naive forecast error
+        naive_forecast = y_true[self.naive_period:]
+        naive_error = y_true[self.naive_period:] - y_true[:-self.naive_period]
+        
+        # Calculate MAE of the naive forecast
+        mae_naive = torch.mean(torch.abs(naive_error))
+        
+        # Calculate MASE
+        mase = mae_pred / (mae_naive + self.epsilon)
+        return mase
+    
+class MAPELoss(nn.Module):
+    def __init__(self, epsilon=1e-8):
+        super().__init__()
+        self.epsilon = epsilon
+
+    def forward(self, y_pred, y_true):
+        # Calculate the absolute percentage error
+        percentage_error = torch.abs((y_true - y_pred) / (y_true + self.epsilon))
+        
+        # Calculate MAPE
+        mape = torch.mean(percentage_error) * 100
+        return mape
 class CustomLoss(nn.Module):
     def __init__(self):
         super().__init__()
@@ -52,7 +86,7 @@ class ModelTrainer:
                                             epochs = num_epochs,
                                             max_lr = self.learning_rate)
 
-        criterion = CustomLoss()
+        self.criterion = MASELoss()
 
         for epoch in range(num_epochs):
             # Training Phase
@@ -69,7 +103,7 @@ class ModelTrainer:
 
                 #mse_loss = self.mse_criterion(y_pred, y_true)
                 #mae_loss = self.mae_criterion(y_pred, y_true)
-                loss = criterion(y_pred, y_true)
+                loss = self.criterion(y_pred, y_true)
                 loss.backward()
 
                 #combined_loss = self.mse_weight * mse_loss + self.mae_weight * mae_loss
@@ -91,7 +125,7 @@ class ModelTrainer:
 
             # Validation Phase
             #val_mse_loss, val_mae_loss = self.validate(val_loader, criterion)
-            val_loss = self.validate(val_loader, criterion)
+            val_loss = self.validate(val_loader, self.criterion)
             print(f"Epoch {epoch+1}/{num_epochs}, Val Loss: {val_loss:.4f}")#, Val MAE Loss: {val_mae_loss:.4f}")
 
             # Learning rate scheduling
@@ -149,6 +183,7 @@ class ModelTrainer:
         total_mae = 0
         all_predictions = []
         all_true_values = []
+        total_loss = []
         
         with torch.no_grad():
             for batch in test_loader:
@@ -157,6 +192,12 @@ class ModelTrainer:
                 
                 mse = self.mse_criterion(y_pred, y_true)
                 mae = self.mae_criterion(y_pred, y_true)
+                
+                loss = self.criterion(y_pred, y_true)
+                
+                #total_mse += mse.item()
+                #total_mae += mae.item()
+                total_loss.append(loss.item())
                 
                 total_mse += mse.item()
                 total_mae += mae.item()
@@ -167,8 +208,11 @@ class ModelTrainer:
         avg_mse_loss = np.average(total_mse)
         avg_mae_loss = np.average(total_mae)
         
+        avg_loss = np.average(avg_loss)
+
         print(f"Test MSE: {avg_mse_loss:.4f}")
         print(f"Test MAE: {avg_mae_loss:.4f}")
+        print(f"Test LOSS: {avg_loss:.4f}")
 
         # Concatenate all predictions and true values
         all_predictions = torch.cat(all_predictions, dim=0)
