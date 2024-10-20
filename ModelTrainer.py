@@ -246,7 +246,7 @@ class ModelTrainer:
 
     def load_adj(dataset, adj_type: str = "doubletransition"):
             
-        adj_mx = dataset.to_numpy()
+        adj_mx = dataset
         if adj_type == "scalap":
             adj = [calculate_scaled_laplacian(adj_mx).astype(np.float32).todense()]
         elif adj_type == "normlap":
