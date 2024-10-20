@@ -32,7 +32,7 @@ class GinAR(nn.Module):
     def forward(self, history_data):
         # Input [B,H,N,C]: B is batch size. N is the number of variables. H is the history length. C is the number of feature.
         # Output [B,L,N]: B is batch size. N is the number of variables. L is the future length
-        history_data_ = np.expand_dims(history_data, axis=0)
+        history_data_ = history_data.unsqueeze(0)  # Shape: [1, 3, 4, 5]
 
         x = history_data_.transpose(-3, -1).transpose(-2, -1)
         B,C,L,N = x.shape[0],x.shape[1],x.shape[2],x.shape[3]
