@@ -52,7 +52,7 @@ class ModelTrainer:
                                             epochs = num_epochs,
                                             max_lr = self.learning_rate)
 
-        criterion = self.CustomLoss()
+        criterion = CustomLoss()
 
         for epoch in range(num_epochs):
             # Training Phase
