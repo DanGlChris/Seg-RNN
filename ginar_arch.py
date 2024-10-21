@@ -33,7 +33,7 @@ class GinAR(nn.Module):
         # Input [B,H,N,C]: B is batch size. N is the number of variables. H is the history length. C is the number of feature.
         # Output [B,L,N]: B is batch size. N is the number of variables. L is the future length
         #history_data_ = history_data.unsqueeze(0)  # Shape: [1, 3, 4, 5]
-        x = history_data.unsqueeze(-1)
+        #x = history_data.unsqueeze(-1)
         x = history_data.transpose(-3, -1).transpose(-2, -1)
         B,C,L,N = x.shape
         graph_data = self.graph_data
