@@ -244,7 +244,7 @@ class ModelTrainer:
             if isinstance(module, nn.Dropout):
                 module.p = dropout_rate
 
-    def load_adj(dataset, adj_type: str = "doubletransition"):
+    def load_adj(dataset, adj_type: str = "scalap"):
             
         adj_mx = dataset
         if adj_type == "scalap":
