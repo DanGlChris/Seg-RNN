@@ -35,7 +35,7 @@ class GinAR(nn.Module):
         #history_data_ = history_data.unsqueeze(0)  # Shape: [1, 3, 4, 5]
         x = history_data.unsqueeze(-1)
         x = history_data.transpose(-3, -1).transpose(-2, -1)
-        B,C,L,N = x.shape[0],x.shape[1],x.shape[2],x.shape[3]
+        B,C,L,N = x.shape
         graph_data = self.graph_data
 
         ### encoder
